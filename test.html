@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>지도 테스트</title>
+<link rel="icon" href="data:,">
+<style>
+  html,body{margin:0;padding:0;height:100%}
+  #map{width:100%;height:70vh;background:#eee}
+  #log{padding:12px;font:14px -apple-system,sans-serif;line-height:1.7}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div id="log">불러오는 중…</div>
+
+<script>
+  var log = function(t){ document.getElementById('log').innerHTML = t; };
+  window.navermap_authFailure = function(){
+    log('❌ <b>인증 실패</b><br>네이버 콘솔의 Web 서비스 URL 등록을 다시 확인하세요.');
+  };
+</script>
+
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=q9fz900u8a"
+        onerror="log('❌ <b>스크립트 로딩 실패</b><br>키 값이나 Dynamic Map 체크를 확인하세요.')"></script>
+
+<script>
+  try {
+    if (typeof naver === 'undefined' || !naver.maps) {
+      log('❌ <b>naver 객체 없음</b> — 스크립트가 실행되지 않았습니다.');
+    } else {
+      var map = new naver.maps.Map('map', {
+        center: new naver.maps.LatLng(37.5666, 126.9780),
+        zoom: 12
+      });
+      new naver.maps.Marker({
+        map: map,
+        position: new naver.maps.LatLng(37.5666, 126.9780)
+      });
+      log('✅ <b>지도 생성 성공</b><br>위에 지도와 핀이 보이면 정상입니다.<br>' +
+          '지도가 회색이면 타일만 못 불러온 상태예요.');
+    }
+  } catch (e) {
+    log('❌ <b>오류 발생</b><br>' + e.message);
+  }
+</script>
+
+</body>
+</html>
