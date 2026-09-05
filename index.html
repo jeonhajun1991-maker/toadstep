@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="ToadStep">
+<title>ToadStep</title>
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  html,body{margin:0;padding:0;width:100%;height:100vh;min-height:100vh;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#141A11}
+  #map{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100vh}
+  #hd{position:fixed;top:0;left:0;right:0;z-index:10;padding:14px 16px 16px;
+      background:linear-gradient(rgba(251,251,248,.96) 60%,rgba(251,251,248,0));pointer-events:none}
+  #hd b{font-size:17px}
+  #hd b i{color:#3B6D11;font-style:normal}
+  #hd div{font-size:12px;color:#5A6354;margin-top:2px}
+  #lg{position:fixed;left:12px;bottom:12px;z-index:10;background:rgba(255,255,255,.95);
+      border:1px solid #E2E5DE;border-radius:10px;padding:8px 11px;font-size:11px;line-height:1.9}
+  #lg s{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;text-decoration:none}
+  #sh{position:fixed;left:0;right:0;bottom:0;z-index:20;background:#fff;border-radius:20px 20px 0 0;
+      box-shadow:0 -2px 22px rgba(20,26,17,.18);padding:10px 20px 30px;
+      transform:translateY(101%);transition:transform .28s ease;max-height:88%;overflow-y:auto}
+  #sh.on{transform:translateY(0)}
+  .gr{width:38px;height:4px;border-radius:2px;background:#D5D9CF;margin:0 auto 14px}
+  .nm{font-size:21px;font-weight:700;letter-spacing:-.02em;line-height:1.35}
+  .sb{font-size:13px;color:#5A6354;margin-top:4px}
+  .st{margin:13px 0 22px;padding:12px 14px;border-radius:11px;
+      background:#EDF4E4;color:#26430D;font-size:14px;line-height:1.6}
+
+  .lbl{font-size:13px;color:#5A6354}
+  .big{font-size:30px;font-weight:700;letter-spacing:-.03em;margin:2px 0 8px}
+  .big.mute{font-size:19px;font-weight:600;color:#9AA394}
+  .p1{font-size:15px;line-height:1.7}
+  .p2{font-size:13px;color:#5A6354;line-height:1.7}
+
+  .card{margin-top:18px;padding:14px 15px;border-radius:12px}
+  .card .ct{font-size:16px;font-weight:700;line-height:1.5}
+  .card .ct2{font-size:14px;font-weight:600;margin-bottom:6px}
+  .card .cb{font-size:13.5px;line-height:1.75;margin-top:8px}
+  .card .cn{font-size:12px;line-height:1.6;margin-top:10px;opacity:.75}
+  .card.warn{background:#FBEEE4;color:#5E2A08}
+  .card.warn .ct{color:#A8480F}
+  .card.danger{background:#FBEAEA;color:#7A2020}
+  .card.danger .ct{color:#9E2626}
+  .card.info{background:#EDF4E4;color:#2F5411}
+  .card.todo{background:#F4F6F1;color:#4A5343}
+
+  .sc{margin-top:22px;font-size:11px;color:#9AA394;line-height:1.7}
+  .bt{margin-top:18px;width:100%;padding:15px;border:0;border-radius:12px;background:#F1F3EE;
+      font-size:15px;font-weight:600;font-family:inherit;cursor:pointer;color:#141A11}
+  #err{padding:90px 26px;font-size:15px;line-height:1.9}
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<div id="hd">
+  <b>Toad<i>Step</i></b>
+  <div>서울 재개발 구역 23곳 · 핀을 눌러보세요</div>
+</div>
+
+<div id="lg">
+  <div><s style="background:#3B6D11"></s>사업 진행 중</div>
+  <div><s style="background:#C98A16"></s>후보지 선정 (2025)</div>
+  <div><s style="background:#A8480F"></s>후보지 선정 (2026)</div>
+</div>
+
+<div id="sh"><div class="gr"></div><div id="bd"></div>
+  <button class="bt" onclick="document.getElementById('sh').classList.remove('on')">닫기</button>
+</div>
+
+<script>
+function fail(t){
+  document.getElementById('map').innerHTML = '<div id="err">' + t + '</div>';
+  document.getElementById('lg').style.display = 'none';
+}
+window.navermap_authFailure = function(){
+  fail('<b>네이버 인증 실패</b><br><br>Web 서비스 URL 등록을 확인하세요.');
+};
+</script>
+
+<script src="https://oapi.map.naver.com/openapi/v3/maps.js?ncpKeyId=q9fz900u8a"
+        onerror="fail('<b>지도 스크립트 로딩 실패</b>')"></script>
+
+<script>
+try {
+
+const Z = [
+  // 진행 중 (정보몽땅 신통기획 1차)
+  {n:'창신동 23 / 숭인동 56 일대',gu:'종로구',lat:37.5745,lng:127.0110,t:'run',
+   area:104853,own:711,memo:'창신역(6호선) 역세권',sel:null,rd:null,lpz:true,
+   price:41000, appraisal:22000, pyeong:4200, pyeongAvg:3500, yearsToKnow:8,
+   todo:'이 동네에 몇 집이 사는지 · 기준 날짜가 언제로 정해졌는지'},
+  {n:'청파2구역',gu:'용산구',lat:37.5450,lng:126.9680,t:'run',
+   area:82360,own:1505,memo:'배문중·고 인접',sel:null,rd:null,lpz:null,
+   todo:'권리산정기준일·현재 단계 확인'},
+  {n:'마장동 382 일대',gu:'성동구',lat:37.5665,lng:127.0430,t:'run',
+   area:17824.84,own:136,memo:'마장역(5호선) 역세권',sel:null,rd:null,lpz:null,
+   todo:'권리산정기준일·현재 단계 확인'},
+  {n:'청량리동 19 일대',gu:'동대문구',lat:37.5840,lng:127.0450,t:'run',
+   area:28647,own:339,memo:'청량중·고 인접',sel:null,rd:null,lpz:null,
+   todo:'권리산정기준일·현재 단계 확인'},
+
+  // 2025년 6차 선정
+  {n:'독산동 979 일대',gu:'금천구',lat:37.4700,lng:126.8950,t:'y25',
+   area:93990.7,own:null,memo:null,sel:'2025-12-16',rd:'2025-11-11',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'독산동 1022 일대',gu:'금천구',lat:37.4660,lng:126.8990,t:'y25',
+   area:83203,own:null,memo:'기존 재개발구역과 연접',sel:'2025-12-16',rd:'2025-11-28',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'신길동 90-31 일대',gu:'영등포구',lat:37.5060,lng:126.9150,t:'y25',
+   area:58162,own:null,memo:null,sel:'2025-12-16',rd:'2025-11-26',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'정릉동 16-179 일대',gu:'성북구',lat:37.6030,lng:127.0130,t:'y25',
+   area:42810.6,own:null,memo:null,sel:'2025-12-16',rd:'2025-11-17',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'행당동 300-1 일대',gu:'성동구',lat:37.5590,lng:127.0290,t:'y25',
+   area:66276.1,own:null,memo:null,sel:'2025-12-16',rd:'2025-09-01',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'신수동 250 일대',gu:'마포구',lat:37.5480,lng:126.9370,t:'y25',
+   area:44718.7,own:null,memo:null,sel:'2025-12-16',rd:'2025-11-25',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'수유동 310-15 일대',gu:'강북구',lat:37.6380,lng:127.0250,t:'y25',
+   area:15944.5,own:null,memo:'가장 작은 구역',sel:'2025-12-16',rd:'2025-11-25',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'신사동 300 일대',gu:'은평구',lat:37.5960,lng:126.9130,t:'y25',
+   area:30222.2,own:null,memo:'노후도 83% · 반지하 73%',sel:'2025-12-16',rd:'2025-11-27',lpz:true,
+   price:33000, appraisal:19000, pyeong:3800, yearsToKnow:9,
+   todo:'이 동네에 몇 집이 사는지'},
+
+  // 2026년 1차
+  {n:'개봉동 66-15 일대',gu:'구로구',lat:37.4950,lng:126.8580,t:'y26',
+   area:109371,own:null,memo:'노후도 70% · 반지하 50%↑',sel:'2026-02-23',rd:'2026-01-26',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'구로동 792-3 일대',gu:'구로구',lat:37.4900,lng:126.8880,t:'y26',
+   area:58472.7,own:null,memo:'G밸리 인접',sel:'2026-02-23',rd:null,lpz:true,
+   todo:'지번(792-3/792-33)·권리산정기준일 확인'},
+  {n:'불광동 442 일대',gu:'은평구',lat:37.6120,lng:126.9270,t:'y26',
+   area:109364.8,own:null,memo:'노후도 70% · 반지하 50%↑',sel:'2026-02-23',rd:'2026-01-27',lpz:true,
+   todo:'토지등소유자 수 확인'},
+  {n:'불광동 445 일대',gu:'은평구',lat:37.6150,lng:126.9300,t:'y26',
+   area:89536.8,own:null,memo:'노후도 70% · 반지하 50%↑',sel:'2026-02-23',rd:null,lpz:true,
+   todo:'권리산정기준일 확인'},
+  {n:'옥천동 123-2 일대',gu:'서대문구',lat:37.5720,lng:126.9600,t:'y26',
+   area:9863.5,own:null,memo:'동의율 70%↑ · 최소 규모',sel:'2026-02-23',rd:null,lpz:true,
+   todo:'권리산정기준일 확인'},
+  {n:'구의동 46 일대',gu:'광진구',lat:37.5450,lng:127.0870,t:'y26',
+   area:105957.2,own:null,memo:'동의율 70%↑',sel:'2026-02-23',rd:'2026-01-27',lpz:true,
+   todo:'토지등소유자 수 확인'},
+
+  // 2026년 2차
+  {n:'북가좌동 3-191 일대',gu:'서대문구',lat:37.5790,lng:126.9080,t:'y26',
+   area:77001.2,own:null,memo:'반지하 밀집',sel:'2026-05-06',rd:null,lpz:'~2027-08-30',
+   todo:'용도지역·권리산정기준일 확인'},
+  {n:'연희동 170-14 일대',gu:'서대문구',lat:37.5700,lng:126.9330,t:'y26',
+   area:35623.6,own:null,memo:'반지하 밀집',sel:'2026-05-06',rd:null,lpz:'~2027-08-30',
+   todo:'용도지역·권리산정기준일 확인'},
+
+  // 2026년 3차
+  {n:'구의동 32 일대',gu:'광진구',lat:37.5410,lng:127.0850,t:'y26',
+   area:29780.5,own:null,memo:'동의율 73% · 아차산역 인접',sel:'2026-07-29',rd:'2026-07-01',lpz:true,
+   todo:'용도지역·토지등소유자 수 확인'},
+  {n:'신길동 113-5 일대',gu:'영등포구',lat:37.5100,lng:126.9180,t:'y26',
+   area:31677,own:null,memo:'노후도 81%',sel:'2026-07-29',rd:null,lpz:true,
+   todo:'권리산정기준일 확인'},
+  {n:'갈현동 510-1 일대',gu:'은평구',lat:37.6150,lng:126.9150,t:'y26',
+   area:null,own:null,memo:'연신내 생활권 연계',sel:'2026-07-29',rd:null,lpz:true,
+   todo:'구역면적·권리산정기준일 확인'}
+];
+
+var COLOR = {run:'#3B6D11', y25:'#C98A16', y26:'#A8480F'};
+var STAGE = {
+  run:{t:'이미 사업이 진행 중이에요. 정비구역 지정 단계입니다.',b:'#EDF4E4',f:'#26430D'},
+  y25:{t:'2025년에 후보지로 뽑혔어요. 이제 계획을 세우는 중입니다.',b:'#FAF2E2',f:'#5C4207'},
+  y26:{t:'올해 막 후보지로 뽑혔어요. 가장 이른 단계입니다.',b:'#FBEEE4',f:'#5E2A08'}
+};
+
+var map = new naver.maps.Map('map', {
+  center: new naver.maps.LatLng(37.5560, 126.9750),
+  zoom: 11,
+  minZoom: 10,
+  scaleControl: false,
+  mapDataControl: false
+});
+
+/* 구역 23곳이 모두 화면에 들어오도록 자동 맞춤 */
+var bounds = new naver.maps.LatLngBounds();
+for (var b = 0; b < Z.length; b++) {
+  bounds.extend(new naver.maps.LatLng(Z[b].lat, Z[b].lng));
+}
+map.fitBounds(bounds, {top: 96, right: 28, bottom: 118, left: 28});
+
+for (var i = 0; i < Z.length; i++) {
+  (function(z){
+    var r = z.area ? Math.max(190, Math.min(460, Math.sqrt(z.area) * 1.1)) : 190;
+    var circle = new naver.maps.Circle({
+      map: map,
+      center: new naver.maps.LatLng(z.lat, z.lng),
+      radius: r,
+      fillColor: COLOR[z.t], fillOpacity: 0.45,
+      strokeColor: COLOR[z.t], strokeWeight: 2,
+      clickable: true
+    });
+    naver.maps.Event.addListener(circle, 'click', function(){ show(z); });
+  })(Z[i]);
+}
+
+function num(n){ return n ? n.toLocaleString('ko-KR',{maximumFractionDigits:0}) : ''; }
+
+function krDate(d){
+  if (!d) return '';
+  var p = d.split('-');
+  return p[0] + '년 ' + parseInt(p[1],10) + '월 ' + parseInt(p[2],10) + '일';
+}
+
+function money(m){
+  if (m === null || m === undefined) return null;
+  var eok = Math.floor(m / 10000);
+  var man = m % 10000;
+  if (eok === 0) return man.toLocaleString('ko-KR') + '만원';
+  if (man === 0) return eok + '억원';
+  return eok + '억 ' + man.toLocaleString('ko-KR') + '만원';
+}
+
+function stageLine(t, stage){
+  var M = {
+    pre:  '아직 정식으로 정해진 동네가 아니에요. 후보로 거론되는 중입니다',
+    y26:  '재개발할 동네로 정해졌어요. 이제 주민 모임을 만드는 중입니다',
+    y25:  '재개발할 동네로 정해졌어요. 이제 주민 모임을 만드는 중입니다',
+    run:  '이미 사업이 진행 중이에요. 재개발할 동네로 정해진 단계입니다'
+  };
+  return M[t] || M.run;
+}
+
+function show(z){
+  var per = (z.area && z.own) ? Math.round(z.area / z.own) : null;
+  var h = '';
+
+  /* ── 1. 이름과 단계 ── */
+  h += '<div class="nm">' + z.n + '</div>'
+     + '<div class="sb">' + z.gu + (z.memo ? ' · ' + z.memo : '') + '</div>'
+     + '<div class="st">' + stageLine(z.t) + '</div>';
+
+  /* ── 2. 지금 필요한 돈 ── */
+  if (z.price) {
+    h += '<div class="lbl">지금 필요한 돈</div>'
+       + '<div class="big">' + money(z.price) + '</div>';
+    if (z.appraisal) {
+      h += '<div class="p1">이 중 ' + money(z.price - z.appraisal) + '은 웃돈이에요</div>'
+         + '<div class="p2">집과 땅 자체의 값은 ' + money(z.appraisal) + ' 정도로 봅니다</div>';
+    }
+    if (z.pyeong) {
+      h += '<div class="p2">땅 1평에 ' + z.pyeong.toLocaleString('ko-KR') + '만원꼴이에요'
+         + (z.pyeongAvg ? '. 같은 동네 다른 매물은 평균 ' + z.pyeongAvg.toLocaleString('ko-KR') + '만원입니다' : '')
+         + '</div>';
+    }
+  } else {
+    h += '<div class="lbl">지금 필요한 돈</div>'
+       + '<div class="big mute">아직 매물 정보가 없어요</div>';
+  }
+
+  /* ── 3. 나중에 더 낼 돈 (단계 게이트) ── */
+  var late = '';
+  if (z.t === 'pre' || z.t === 'y26' || z.t === 'y25' || z.t === 'run') {
+    late = '<div class="card warn">'
+         + '<div class="ct">나중에 얼마를 더 내야 할지는<br>아직 아무도 모릅니다</div>'
+         + '<div class="cb">집집마다 값을 매기는 절차가 끝나야 계산돼요.'
+         + (z.yearsToKnow ? ' 이 동네는 빨라야 ' + z.yearsToKnow + '년 뒤입니다.' : '')
+         + '</div></div>';
+  }
+  h += late;
+
+  /* ── 4. 경고: 날짜 ── */
+  if (z.rd) {
+    h += '<div class="card danger">'
+       + '<div class="ct">⚠ ' + krDate(z.rd) + ' 이후에 지어졌거나<br>쪼개진 집은 새 아파트를 못 받아요</div>'
+       + '<div class="cb">싸게 나온 신축 빌라일수록 위험합니다.<br>등기부등본을 떼서 이 집이 언제 생겼는지 확인하세요.</div>'
+       + '<div class="cn">↳ 조합에 물어볼 때는 "권리산정기준일"이라고 하면 됩니다</div>'
+       + '</div>';
+  } else {
+    h += '<div class="card danger">'
+       + '<div class="ct">⚠ 아직 기준 날짜가 정해지지 않았어요</div>'
+       + '<div class="cb">나중에 후보지로 뽑히면 이 날짜가 <b>과거로 소급해서</b> 정해집니다.'
+       + ' 지금 사는 집이 그때 자격을 잃을 수 있어요.<br>'
+       + '최근에 지어진 집이라면 특히 조심하세요.</div>'
+       + '</div>';
+  }
+
+  /* ── 5. 경고: 토허구역 ── */
+  if (z.lpz) {
+    h += '<div class="card danger">'
+       + '<div class="ct">⚠ 전세를 끼고 살 수 없는 동네입니다</div>'
+       + '<div class="cb">구청 허가를 받아야 하고, 직접 들어가 살아야 해요.'
+       + (z.price ? '<br>그래서 ' + money(z.price) + '이 전부 현금으로 필요합니다.' : '')
+       + '</div>'
+       + '<div class="cn">↳ 부동산에서는 "토지거래허가구역"이라고 부릅니다</div>'
+       + '</div>';
+  }
+
+  /* ── 6. 사업성 참고 ── */
+  if (per) {
+    h += '<div class="card info">'
+       + '<div class="cb">이 동네는 집 한 채당 땅이 <b>' + per + '㎡</b>씩 돌아가요.'
+       + ' 이 값이 클수록 새로 지을 때 여유가 생겨서, 나중에 낼 돈이 줄어드는 편입니다.</div>'
+       + '</div>';
+  }
+
+  /* ── 7. 아직 확인 못 한 것 ── */
+  if (z.todo) {
+    h += '<div class="card todo">'
+       + '<div class="ct2">아직 확인 못 한 것</div>'
+       + '<div class="cb">' + z.todo + '<br>조합 사무실이나 구청에서 확인할 수 있어요.</div>'
+       + '</div>';
+  }
+
+  /* ── 8. 출처 ── */
+  h += '<div class="sc">서울시 공고와 정비사업 공개 자료를 바탕으로 만들었습니다.<br>'
+     + '지도 위 위치는 대략적인 표시라 실제 구역 경계와 다릅니다.<br>'
+     + '중요한 결정을 하기 전에는 반드시 원본 문서로 다시 확인하세요.</div>';
+
+  document.getElementById('bd').innerHTML = h;
+  document.getElementById('sh').classList.add('on');
+}
+
+} catch (e) {
+  fail('<b>코드 오류</b><br><br>' + e.message);
+}
+</script>
+
+</body>
+</html>
